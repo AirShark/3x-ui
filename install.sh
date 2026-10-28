@@ -448,18 +448,37 @@ setup_ssl_certificate() {
     local certPath="/root/cert/${domain}"
     mkdir -p "$certPath"
 
-    # Issue certificate
-    echo -e "${green}Issuing SSL certificate for ${domain}...${plain}"
-    echo -e "${yellow}Note: Port 80 must be open and accessible from the internet${plain}"
+    # Issue certificate using Timeweb DNS-01
+    echo -e "${green}Issuing SSL certificate for ${domain} via Timeweb DNS...${plain}"
 
-    ~/.acme.sh/acme.sh --set-default-ca --server letsencrypt --force > /dev/null 2>&1
-    ~/.acme.sh/acme.sh --issue -d ${domain} $(acme_listen_flag) --standalone --httpport 80 --force
+    local TW_Token=""
+    read -r -s -p "Enter Timeweb Cloud API token (TW_Token): " TW_Token
+    echo
 
-    if [ $? -ne 0 ]; then
+    if [ -z "$TW_Token" ]; then
+        echo -e "${yellow}API token cannot be empty${plain}"
+        return 1
+    fi
+
+    export TW_Token
+
+    ~/.acme.sh/acme.sh --set-default-ca --server letsencrypt > /dev/null 2>&1
+
+    ~/.acme.sh/acme.sh --issue \
+        --server letsencrypt \
+        --dns dns_timeweb \
+        -d "${domain}" \
+        --force
+
+    local issue_status=$?
+
+    unset TW_Token
+
+    if [ "$issue_status" -ne 0 ]; then
         echo -e "${yellow}Failed to issue certificate for ${domain}${plain}"
-        echo -e "${yellow}Please ensure port 80 is open and try again later with: x-ui${plain}"
-        rm -rf ~/.acme.sh/${domain} ~/.acme.sh/${domain}_ecc 2> /dev/null
-        rm -rf "$certPath" 2> /dev/null
+        echo -e "${yellow}Check your Timeweb Cloud API token and DNS zone settings.${plain}"
+        rm -rf ~/.acme.sh/${domain} ~/.acme.sh/${domain}_ecc 2>/dev/null
+        rm -rf "$certPath" 2>/dev/null
         return 1
     fi
 
