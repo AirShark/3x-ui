@@ -753,37 +753,37 @@ ssl_cert_issue() {
         mkdir -p "$certPath"
     fi
 
-    # Request Timeweb Cloud API token for DNS-01 validation
-    local TW_Token="${TW_Token:-${XUI_TW_TOKEN:-}}"
-    if [[ -z "${TW_Token}" ]]; then
+    # Request Cloudflare API token for DNS-01 validation
+    local CF_Token="${CF_Token:-${XUI_CF_TOKEN:-}}"
+    if [[ -z "${CF_Token}" ]]; then
         if [[ "$NONINTERACTIVE" == "1" ]]; then
-            echo -e "${red}Missing Timeweb Cloud API token. Set XUI_TW_TOKEN.${plain}"
+            echo -e "${red}Missing Cloudflare API token. Set XUI_CF_TOKEN.${plain}"
             return 1
         fi
-        read -r -s -p "Enter Timeweb Cloud API token (TW_Token): " TW_Token
+        read -r -s -p "Enter Cloudflare API token (CF_Token): " CF_Token
         echo
     fi
-    if [[ -z "${TW_Token}" ]]; then
-        echo -e "${red}Timeweb Cloud API token cannot be empty.${plain}"
+    if [[ -z "${CF_Token}" ]]; then
+        echo -e "${red}Cloudflare API token cannot be empty.${plain}"
         return 1
     fi
-    export TW_Token
+    export CF_Token
 
     if [[ ${cert_exists} -eq 0 ]]; then
         # issue the certificate
         #~/.acme.sh/acme.sh --set-default-ca --server letsencrypt --force
-        # Issue certificate using Timeweb DNS-01; port 80 is not required
+        # Issue certificate using Cloudflare DNS-01; port 80 is not required
         ~/.acme.sh/acme.sh --set-default-ca --server letsencrypt
         [[ -n "${XUI_ACME_EMAIL:-}" ]] && ~/.acme.sh/acme.sh --register-account -m "${XUI_ACME_EMAIL}" > /dev/null 2>&1
         #~/.acme.sh/acme.sh --issue -d ${domain} $(acme_listen_flag) --standalone --httpport ${WebPort} --force
         #if [ $? -ne 0 ]; then
         ~/.acme.sh/acme.sh --issue \
             --server letsencrypt \
-            --dns dns_timeweb \
+            --dns dns_cf \
             -d "${domain}" \
             --force
         local issue_status=$?
-        unset TW_Token
+        unset CF_Token
         if [[ ${issue_status} -ne 0 ]]; then
             echo -e "${red}Issuing certificate failed, please check logs.${plain}"
             #rm -rf ~/.acme.sh/${domain} ~/.acme.sh/${domain}_ecc
@@ -793,7 +793,7 @@ ssl_cert_issue() {
             echo -e "${green}Issuing certificate succeeded, installing certificates...${plain}"
         fi
     else
-        unset TW_Token
+        unset CF_Token
         echo -e "${green}Using existing certificate, installing certificates...${plain}"
     fi
 
@@ -915,7 +915,7 @@ prompt_and_setup_ssl() {
     echo -e "${green}3.${plain} Custom SSL Certificate (Path to existing files)"
     echo -e "${green}4.${plain} Skip SSL (advanced — behind reverse proxy / SSH tunnel only)"
     #echo -e "${blue}Note:${plain} Options 1 & 2 require port 80 open. Option 3 requires manual paths."
-    echo -e "${blue}Note:${plain} Option 1 uses Timeweb DNS-01 (no port 80 required). Option 2 requires port 80. Option 3 requires manual paths."
+    echo -e "${blue}Note:${plain} Option 1 uses Cloudflare DNS-01 (no port 80 required). Option 2 requires port 80. Option 3 requires manual paths."
     echo -e "${blue}Note:${plain} Option 4 serves the panel over plain HTTP — only safe behind nginx/Caddy or an SSH tunnel."
     if [[ "$NONINTERACTIVE" == "1" ]]; then
         case "${XUI_SSL_MODE:-none}" in
